@@ -33,8 +33,8 @@ let lastTime = performance.now();
 
 const ui = setupUI({
   onPlay: startGame,
-  onShowHow: () => togglePanel('how', true),
-  onBack: () => togglePanel('how', false),
+  onShowHow: () => { ui.show('menu', false); ui.show('how', true); },
+  onBack: () => { ui.show('how', false); ui.show('menu', true); },
   onResume: resumeGame,
   onRestart: () => { endGame(false); startGame(); },
   onQuit: () => { endGame(false); showMenu(); },
