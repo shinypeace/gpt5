@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>StarRunner — 3D Space Shooter</title>
+    <meta name="description" content="Minimalistic 3D shooter on a colorful planet, built with Three.js.">
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <style>
+      :root {
+        --bg: #0b0f1a;
+        --fg: #e6f0ff;
+        --muted: #9db3d4;
+        --accent: #6dd6ff;
+        --accent-2: #b16dff;
+        --warn: #ff7a7a;
+        --ok: #7bffbd;
+      }
+      html, body {
+        margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+        user-select: none;
+      }
+      canvas { display: block; }
+      .ui-layer { position: fixed; inset: 0; pointer-events: none; }
+      .hud {
+        position: absolute; left: 16px; top: 16px; right: 16px; display: flex; align-items: center; gap: 14px; pointer-events: none;
+        mix-blend-mode: normal;
+      }
+      .chip { pointer-events: auto; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); border-radius: 12px; padding: 8px 12px; backdrop-filter: blur(6px);
+        display: inline-flex; align-items: center; gap: 8px; font-weight: 600; letter-spacing: 0.3px; }
+      .bar { height: 8px; width: 180px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+      .bar > i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+      .corner {
+        position: absolute; right: 16px; bottom: 16px; display: grid; gap: 8px; text-align: right; color: var(--muted);
+      }
+      .centered {
+        position: absolute; inset: 0; display: grid; place-items: center; padding: 24px;
+      }
+      .panel {
+        pointer-events: auto;
+        background: rgba(8,12,24,0.72); border: 1px solid rgba(255,255,255,0.10); border-radius: 16px; padding: 24px; max-width: 720px; width: 100%;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      }
+      h1, h2 { margin: 0 0 12px; font-weight: 800; letter-spacing: 0.4px; }
+      p { margin: 8px 0; color: var(--muted); }
+      .row { display: flex; flex-wrap: wrap; gap: 12px; }
+      .btn {
+        pointer-events: auto; cursor: pointer; border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 700; letter-spacing: 0.4px;
+        background: linear-gradient(180deg, #1a2236, #0f1626); color: var(--fg); border: 1px solid rgba(255,255,255,0.10);
+        transition: transform .08s ease, box-shadow .2s ease; box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+      }
+      .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(0,0,0,0.35); }
+      .btn.primary { background: linear-gradient(180deg, #1f2f5a, #15254a); border-color: rgba(109,214,255,0.4); }
+      .kbd { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); padding: 2px 6px; border-radius: 6px; font-weight: 700; }
+      .hidden { display: none !important; }
+      .notice { color: var(--muted); font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+
+    <div class="ui-layer" id="ui">
+      <div class="hud" id="hud">
+        <div class="chip"><span>Score</span><span id="score">0</span></div>
+        <div class="chip"><span>High</span><span id="high">0</span></div>
+        <div class="chip"><span>Time</span><span id="time">0:00</span></div>
+        <div class="chip"><span>Health</span>
+          <span class="bar"><i id="hpbar" style="width:100%"></i></span>
+        </div>
+        <div class="chip"><span>Ammo</span><span id="ammo">∞</span></div>
+      </div>
+
+      <div class="corner" id="corner">
+        <div>WASD — move</div>
+        <div>Mouse — look, Click — shoot</div>
+        <div>Space — dash, Shift — sprint, Esc — pause</div>
+      </div>
+
+      <div class="centered" id="menu">
+        <div class="panel">
+          <h1>StarRunner</h1>
+          <p>Беги по мини‑планете среди звёзд, уклоняйся, стреляй, собирай бусты и ставь рекорды.</p>
+          <div class="row">
+            <button class="btn primary" id="btnPlay">Играть</button>
+            <button class="btn" id="btnHow">Управление</button>
+          </div>
+          <p class="notice">Игра запускается в полноэкранном режиме захвата курсора. Это приложение работает прямо с GitHub Pages без сборки.</p>
+        </div>
+      </div>
+
+      <div class="centered hidden" id="how">
+        <div class="panel">
+          <h2>Управление</h2>
+          <p><span class="kbd">W</span><span class="kbd">A</span><span class="kbd">S</span><span class="kbd">D</span> — движение по поверхности планеты</p>
+          <p>Мышь — обзор, ЛКМ — стрельба, <span class="kbd">Space</span> — рывок, <span class="kbd">Shift</span> — бег</p>
+          <p><span class="kbd">Esc</span> — пауза</p>
+          <div class="row"><button class="btn" id="btnBack">Назад</button></div>
+        </div>
+      </div>
+
+      <div class="centered hidden" id="pause">
+        <div class="panel">
+          <h2>Пауза</h2>
+          <p id="pauseStats">Счёт: 0 • Время: 0:00 • Убийств: 0</p>
+          <div class="row">
+            <button class="btn primary" id="btnResume">Продолжить</button>
+            <button class="btn" id="btnRestart">Заново</button>
+            <button class="btn" id="btnQuit">В меню</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="centered hidden" id="gameover">
+        <div class="panel">
+          <h2>Игра окончена</h2>
+          <p id="overStats">Счёт: 0 • Рекорд: 0 • Убийств: 0</p>
+          <div class="row">
+            <button class="btn primary" id="btnRetry">Сыграть снова</button>
+            <button class="btn" id="btnMenu">В меню</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/workspace/src/main.js"></script>
+  </body>
+</html>
